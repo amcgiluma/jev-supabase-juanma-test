@@ -12,6 +12,12 @@ npm start
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The sample previews are illustrative and make no API call.
 
+## Edit the API request
+
+Open **See and edit the API call** below the ticket cards. The editor shows the exact JSON request body. You can change the model, state, question instructions, choice options, score levels, and Noul criteria. **Run this JSON** sends that body through the local proxy and shows the raw response beside it. **Run current request** above does the same thing. The server validates the JSON before forwarding it, and the Jev API URL and key remain server-side. **Reset** restores the default three-question request for the current ticket. **Copy cURL** copies the current request with a `JEV_API_KEY` environment variable placeholder.
+
+The ticket field and JSON `state.ticket` stay in sync while that field exists. If you replace `state` with a different structure, edit that state directly in JSON. Selecting a sample resets the request to the default template.
+
 For live Jev results, set the key on the server before starting it:
 
 ```sh

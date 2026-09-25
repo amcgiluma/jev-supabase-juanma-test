@@ -1,3 +1,5 @@
+import { buildRequest, validatePayload } from './request.js';
+
 const samples = {
   mfa: {
     text: 'Hi Security, I lost the phone that has my authenticator app. I cannot sign in to my Supabase account, and I need an MFA reset to get back to work. My team has a release this afternoon. What do you need from me to verify my identity?',
@@ -19,8 +21,14 @@ const count = document.querySelector('#char-count');
 const content = document.querySelector('#result-content');
 const empty = document.querySelector('#result-empty');
 const state = document.querySelector('#result-state');
+const requestJson = document.querySelector('#request-json');
+const validation = document.querySelector('#request-validation');
+const responseBody = document.querySelector('#response-body');
+const responseBadge = document.querySelector('#response-badge');
 let selected = 'mfa';
 let lastPayload = null;
+let lastRaw = null;
+let editorDirty = false;
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
 function pct(number) { return `${Math.round(Math.max(0, Math.min(1, Number(number) || 0)) * 100)}%`; }
 function showView(view) {
@@ -31,17 +39,80 @@ function showView(view) {
 }
 document.querySelectorAll('.nav-item').forEach(node => node.addEventListener('click', () => showView(node.dataset.view)));
 document.querySelector('#learn-more').addEventListener('click', event => { event.preventDefault(); showView('playbook'); });
+function lineNumbers() {
+  document.querySelector('#request-lines').textContent = Array.from({ length: requestJson.value.split('\n').length }, (_, index) => index + 1).join('\n');
+}
+function readEditor() {
+  try {
+    const payload = JSON.parse(requestJson.value);
+    const error = validatePayload(payload);
+    return error ? { error } : { payload };
+  } catch (error) { return { error: `Invalid JSON: ${error.message}` }; }
+}
+function refreshEditor() {
+  lineNumbers();
+  const { payload, error } = readEditor();
+  validation.textContent = error || `${Object.keys(payload.questions).length} question${Object.keys(payload.questions).length === 1 ? '' : 's'} · valid JSON · ready to run`;
+  validation.classList.toggle('invalid', Boolean(error));
+  document.querySelector('#run-json').disabled = Boolean(error);
+  document.querySelector('#analyze-btn').disabled = Boolean(error);
+  document.querySelector('#preview-btn').disabled = editorDirty || !selected;
+  document.querySelector('#editor-dirty').hidden = !editorDirty;
+  document.querySelector('#request-mode-label').textContent = payload?.model || 'custom JSON';
+}
+function setEditor(payload) {
+  requestJson.value = JSON.stringify(payload, null, 2);
+  editorDirty = false;
+  refreshEditor();
+}
 function selectSample(name) {
   selected = name;
   ticket.value = samples[name].text;
   count.textContent = `${ticket.value.length} / 6000`;
   document.querySelectorAll('.scenario').forEach(node => node.classList.toggle('selected', node.dataset.sample === name));
+  setEditor(buildRequest(ticket.value));
 }
 document.querySelectorAll('.scenario').forEach(node => node.addEventListener('click', () => selectSample(node.dataset.sample)));
 ticket.addEventListener('input', () => {
   count.textContent = `${ticket.value.length} / 6000`;
   if (selected && ticket.value !== samples[selected].text) { selected = null; document.querySelectorAll('.scenario').forEach(node => node.classList.remove('selected')); }
+  if (!editorDirty) return setEditor(buildRequest(ticket.value));
+  const { payload } = readEditor();
+  if (payload && payload.state && typeof payload.state === 'object' && !Array.isArray(payload.state) && typeof payload.state.ticket === 'string') {
+    payload.state.ticket = ticket.value;
+    requestJson.value = JSON.stringify(payload, null, 2);
+    refreshEditor();
+  } else if (payload && typeof payload.state === 'string') {
+    payload.state = ticket.value;
+    requestJson.value = JSON.stringify(payload, null, 2);
+    refreshEditor();
+  } else if (payload) {
+    validation.textContent = 'The JSON state is custom. Edit the JSON to change the ticket sent to Jev.';
+  }
 });
+requestJson.addEventListener('input', () => {
+  editorDirty = true;
+  refreshEditor();
+  const { payload } = readEditor();
+  const currentTicket = typeof payload?.state === 'string' ? payload.state : payload?.state?.ticket;
+  if (typeof currentTicket === 'string' && currentTicket !== ticket.value) {
+    ticket.value = currentTicket.slice(0, 6000);
+    count.textContent = `${ticket.value.length} / 6000`;
+    selected = null;
+    document.querySelectorAll('.scenario').forEach(node => node.classList.remove('selected'));
+  }
+});
+requestJson.addEventListener('scroll', () => { document.querySelector('#request-lines').scrollTop = requestJson.scrollTop; });
+requestJson.addEventListener('keydown', event => {
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    const start = requestJson.selectionStart;
+    requestJson.setRangeText('  ', start, requestJson.selectionEnd, 'end');
+    requestJson.dispatchEvent(new Event('input'));
+  }
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); runCurrentRequest(); }
+});
+document.querySelector('#reset-request').addEventListener('click', () => setEditor(buildRequest(ticket.value)));
 selectSample('mfa');
 async function updateStatus() {
   try {
@@ -75,29 +146,98 @@ function renderAnswers(answers, mode, usage = null) {
     document.querySelector('#copy-request').textContent = 'COPIED ✓';
   });
 }
+function renderGenericAnswers(answers, usage = null) {
+  empty.hidden = true;
+  content.hidden = false;
+  state.textContent = 'LIVE RESULT'; state.className = 'result-state live';
+  const rows = Object.entries(answers).map(([name, answer], index) => {
+    let value;
+    let detail;
+    if (answer.type === 'choice') {
+      value = answer.choice;
+      detail = `Confidence ${pct(answer.confidence)} · ${Object.entries(answer.probabilities || {}).sort((a,b)=>b[1]-a[1]).map(([key, probability]) => `${esc(key)} ${pct(probability)}`).join(' · ')}`;
+    } else if (answer.type === 'score') {
+      value = `Score ${Number(answer.score).toFixed(2)}`;
+      detail = `Confidence ${pct(answer.confidence)} · ${Object.entries(answer.probabilities || {}).sort((a,b)=>Number(a[0])-Number(b[0])).map(([key, probability]) => `${esc(answer.legend?.[key] || `Level ${key}`)} ${pct(probability)}`).join(' · ')}`;
+    } else if (answer.type === 'noul') {
+      value = `${pct(answer.noul)} yes`;
+      detail = 'Noul returns a yes probability without a separate confidence field.';
+    } else {
+      value = 'Unknown answer type';
+      detail = 'Inspect the raw response for this answer.';
+    }
+    return `<div class="signal"><div class="signal-head"><span class="signal-num">${String(index + 1).padStart(2, '0')}</span><strong>${esc(name.replaceAll('_', ' '))}</strong><small>${esc(answer.type)}</small></div><div class="signal-result"><b>${esc(value)}</b></div><div class="signal-meta">${detail}</div></div>`;
+  }).join('');
+  content.innerHTML = `<div class="result-banner"><div><strong>Jev analysis complete</strong><small>Results for your edited request</small></div><span class="banner-badge">✳ LIVE</span></div>${rows}<div class="result-bottom"><span>${usage?.input_tokens ?? '—'} input tokens · ${usage?.output_tokens ?? '—'} output tokens</span><button id="copy-request" type="button">COPY REQUEST JSON ↗</button></div>`;
+  document.querySelector('#copy-request').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2));
+    document.querySelector('#copy-request').textContent = 'COPIED ✓';
+  });
+}
 function showError(message) {
   empty.hidden = true;
   content.hidden = false;
   state.textContent = 'ERROR'; state.className = 'result-state preview';
   content.innerHTML = `<div class="error-box">${esc(message)}</div>`;
 }
+function showRaw(value, kind, meta) {
+  lastRaw = JSON.stringify(value, null, 2);
+  responseBody.replaceChildren();
+  const pre = document.createElement('pre');
+  pre.textContent = lastRaw;
+  responseBody.append(pre);
+  responseBadge.textContent = kind === 'success' ? '200 OK' : kind === 'preview' ? 'EXAMPLE' : 'ERROR';
+  responseBadge.className = `response-badge ${kind}`;
+  document.querySelector('#response-meta').textContent = meta;
+  document.querySelector('#copy-response').disabled = false;
+}
 document.querySelector('#preview-btn').addEventListener('click', () => {
-  if (!selected) return showError('Choose a sample ticket to see its illustrative output. Use Analyze ticket for your own text.');
+  if (!selected || editorDirty) return showError('Choose a sample ticket to see its illustrative output. Run the current JSON for edited requests.');
   lastPayload = null;
   renderAnswers(samples[selected].preview, 'preview');
+  showRaw({ note: 'Illustrative values. No API call was made.', answers: samples[selected].preview }, 'preview', 'Sample output · no API call');
 });
-document.querySelector('#analyze-btn').addEventListener('click', async () => {
-  const message = ticket.value.trim();
-  if (message.length < 8) return showError('Enter a ticket with at least 8 characters.');
-  const button = document.querySelector('#analyze-btn');
-  button.disabled = true; button.innerHTML = 'Analyzing…';
+async function runCurrentRequest() {
+  const { payload, error } = readEditor();
+  if (error) return showError(error);
+  const buttons = [document.querySelector('#analyze-btn'), document.querySelector('#run-json')];
+  buttons.forEach(button => { button.disabled = true; button.dataset.original = button.innerHTML; button.innerHTML = 'Running…'; });
   state.textContent = 'RUNNING'; state.className = 'result-state';
+  responseBadge.textContent = 'RUNNING'; responseBadge.className = 'response-badge';
+  document.querySelector('#response-meta').textContent = 'Sending current JSON body…';
+  const started = performance.now();
   try {
-    const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message }) });
+    const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload }) });
     const data = await response.json();
-    if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+    const elapsed = Math.round(performance.now() - started);
+    if (!response.ok) {
+      showRaw(data, 'error', `HTTP ${response.status} · ${elapsed} ms`);
+      throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+    }
     lastPayload = data.request;
-    renderAnswers(data.result.answers, 'live', data.result.usage);
-  } catch (error) { showError(error.message || 'Analysis failed.'); }
-  finally { button.disabled = false; button.innerHTML = 'Analyze ticket <span>↗</span>'; }
+    showRaw(data.result, 'success', `HTTP ${response.status} · ${elapsed} ms · ${data.result.model || payload.model}`);
+    const standard = !editorDirty && data.result.answers.route && data.result.answers.urgency && data.result.answers.human_review;
+    if (standard) renderAnswers(data.result.answers, 'live', data.result.usage);
+    else renderGenericAnswers(data.result.answers, data.result.usage);
+  } catch (error) {
+    showError(error.message || 'Analysis failed.');
+    if (responseBadge.textContent === 'RUNNING') showRaw({ error: error.message || 'Network error' }, 'error', `${Math.round(performance.now() - started)} ms · request failed`);
+  } finally { buttons.forEach(button => { button.disabled = false; button.innerHTML = button.dataset.original; }); refreshEditor(); }
+}
+document.querySelector('#analyze-btn').addEventListener('click', runCurrentRequest);
+document.querySelector('#run-json').addEventListener('click', runCurrentRequest);
+document.querySelector('#copy-response').addEventListener('click', async () => {
+  if (!lastRaw) return;
+  await navigator.clipboard.writeText(lastRaw);
+  document.querySelector('#copy-response').textContent = 'Copied';
+  setTimeout(() => { document.querySelector('#copy-response').textContent = 'Copy response'; }, 1600);
+});
+document.querySelector('#copy-curl').addEventListener('click', async () => {
+  const { payload, error } = readEditor();
+  if (error) return showError(error);
+  const body = JSON.stringify(payload, null, 2).replaceAll("'", "'\\''");
+  const command = `curl -X POST https://thejevai.com/v1/systemone \\\n  -H "Authorization: Bearer $JEV_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
+  await navigator.clipboard.writeText(command);
+  document.querySelector('#copy-curl').textContent = 'Copied';
+  setTimeout(() => { document.querySelector('#copy-curl').textContent = 'Copy cURL'; }, 1600);
 });

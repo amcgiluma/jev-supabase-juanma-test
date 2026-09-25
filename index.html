@@ -14,7 +14,7 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand"><img src="/assets/supabase-logo-wordmark--dark.svg" alt="Supabase"><span class="brand-divider"></span><span class="lab-label">LABS</span></div>
+      <div class="brand"><img src="/assets/supabase-logo-wordmark--black.svg" alt="Supabase"><span class="brand-divider"></span><span class="lab-label">SECURITY</span></div>
       <div class="workspace-switch"><span class="workspace-avatar">S</span><span><strong>Security team</strong><small>Internal workspace</small></span><span class="chevron">⌄</span></div>
       <div class="nav-caption">WORKSPACE</div>
       <nav aria-label="Main navigation">
@@ -28,15 +28,15 @@
     </aside>
 
     <div class="page-shell">
-      <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> Security <span>/</span> <strong id="crumb-name">Triage lab</strong></div><div class="top-actions"><span class="environment"><span></span> LOCAL PROTOTYPE</span><a href="https://thejevai.com/docs" target="_blank" rel="noopener">Jev docs ↗</a><div class="user-avatar">ST</div></div></header>
+      <header class="topbar"><div class="top-brand"><img src="/assets/supabase-logo-wordmark--black.svg" alt="Supabase"><span class="top-brand-rule"></span><div class="breadcrumb">Security <span>/</span> <strong id="crumb-name">Triage lab</strong></div></div><div class="top-actions"><span class="environment"><span></span> LOCAL PROTOTYPE</span><a href="https://thejevai.com/docs" target="_blank" rel="noopener">Jev docs ↗</a><div class="user-avatar">ST</div></div></header>
 
       <main id="lab-view" class="content">
         <section class="hero">
-          <div class="hero-copy"><div class="eyebrow"><span class="eyebrow-mark">✳</span> SECURITY OPERATIONS / EXPERIMENT 01</div><h1>Every ticket, a <em>clear next step.</em></h1><p>Turn a support request into a suggested workstream, an urgency score, and a human review signal. One ticket. Three bounded decisions.</p><div class="hero-pills"><span><i>◈</i> Choice</span><span><i>▥</i> Score</span><span><i>◎</i> Noul</span></div></div>
-          <div class="hero-art" aria-hidden="true"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="art-card art-card-back"><span></span><span></span><span></span></div><div class="art-card art-card-front"><div class="art-card-top"><b>✳</b><span>TRIAGE ENGINE</span><small>01 / 03</small></div><div class="art-line wide"></div><div class="art-line"></div><div class="art-tags"><span>Identity & access</span><span>92%</span></div></div><div class="art-star">✦</div></div>
+          <div class="hero-copy"><div class="eyebrow"><span class="eyebrow-mark">✳</span> SUPABASE SECURITY / EXPERIMENT 01</div><h1>Every ticket, a <em>clear next step.</em></h1><p>Turn a support request into a suggested workstream, an urgency score, and a human review signal. One ticket. Three bounded decisions.</p><div class="hero-pills"><span><i>◈</i> Choice</span><span><i>▥</i> Score</span><span><i>◎</i> Noul</span><span class="hero-product"><img src="/assets/supabase-logo-icon.svg" alt=""> Auth workflow</span></div></div>
+          <div class="hero-art" aria-hidden="true"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="art-card art-card-back"><span></span><span></span><span></span></div><div class="art-card art-card-front"><div class="art-card-top"><img src="/assets/supabase-logo-icon.svg" alt=""><span>SECURITY TRIAGE</span><small>01 / 03</small></div><div class="art-line wide"></div><div class="art-line"></div><div class="art-tags"><span>Identity & access</span><span>92%</span></div></div><div class="art-star">✦</div></div>
         </section>
 
-        <div class="section-heading"><div><span class="section-kicker">THE PLAYGROUND</span><h2>Test a security ticket</h2><p>Choose a scenario or write your own request to see how the three decisions work together.</p></div><div id="connection-badge" class="connection-badge">Checking connection…</div></div>
+        <div class="section-heading"><div><span class="section-kicker">THE PLAYGROUND</span><h2>Test a security ticket</h2><p>Choose a scenario or write your own request to see how the three decisions work together.</p></div><div class="section-actions"><a href="#api-studio">Edit API request ↘</a><div id="connection-badge" class="connection-badge">Checking connection…</div></div></div>
 
         <div class="work-grid">
           <section class="input-card">
@@ -50,7 +50,7 @@
             <div class="editor-label"><label for="ticket">TICKET CONTENT</label><span id="char-count">0 / 6000</span></div>
             <textarea id="ticket" maxlength="6000" spellcheck="true" aria-describedby="ticket-hint"></textarea>
             <p id="ticket-hint" class="editor-hint">Use synthetic examples in this local trial. Avoid personal data and secrets.</p>
-            <div class="input-footer"><span><span class="sparkle">✳</span> Model <strong>jev-latest</strong></span><div class="button-row"><button id="preview-btn" class="btn-secondary" type="button">Preview example</button><button id="analyze-btn" class="btn-primary" type="button">Analyze ticket <span>↗</span></button></div></div>
+            <div class="input-footer"><span><img class="footer-brand-icon" src="/assets/supabase-logo-icon.svg" alt=""> Request <strong id="request-mode-label">jev-latest</strong></span><div class="button-row"><button id="preview-btn" class="btn-secondary" type="button">Preview example</button><button id="analyze-btn" class="btn-primary" type="button">Run current request <span>↗</span></button></div></div>
           </section>
 
           <section class="result-card" aria-live="polite">
@@ -59,6 +59,15 @@
             <div id="result-content" class="result-content" hidden></div>
           </section>
         </div>
+
+        <section id="api-studio" class="api-studio" aria-labelledby="studio-title">
+          <div class="studio-heading"><div><span class="section-kicker">REQUEST STUDIO</span><h2 id="studio-title">See and edit the API call</h2><p>The JSON below is the body sent to Jev. Change the model, ticket state, instructions, or criteria, then run it.</p></div><span class="studio-live-badge"><span></span> EXACT REQUEST BODY</span></div>
+          <div class="studio-grid">
+            <div class="studio-panel"><div class="studio-toolbar"><div class="studio-tab"><span class="studio-file-dot"></span> request.json <span id="editor-dirty" class="editor-dirty" hidden>EDITED</span></div><div class="studio-tools"><button id="reset-request" type="button">Reset</button><button id="copy-curl" type="button">Copy cURL</button></div></div><div class="endpoint-row"><span class="method">POST</span><code>https://thejevai.com/v1/systemone</code><span class="server-key">KEY ON SERVER</span></div><div class="code-wrap"><div class="line-numbers" id="request-lines" aria-hidden="true"></div><textarea id="request-json" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Editable Jev request JSON"></textarea></div><div class="studio-footer"><span id="request-validation" role="status">Valid JSON · ready to run</span><button id="run-json" class="btn-primary" type="button">Run this JSON <span>↗</span></button></div></div>
+            <div class="studio-panel response-panel"><div class="studio-toolbar"><div class="studio-tab"><span class="studio-file-dot response-dot"></span> response.json</div><span id="response-badge" class="response-badge">WAITING</span></div><div class="response-body" id="response-body"><div class="response-placeholder"><span>{ }</span><strong>Response appears here</strong><p>Run the request to inspect the raw Jev output, usage, and any API error.</p></div></div><div class="response-footer"><span id="response-meta">No request sent yet</span><button id="copy-response" type="button" disabled>Copy response</button></div></div>
+          </div>
+          <p class="studio-note"><img src="/assets/supabase-logo-icon.svg" alt=""> The editor changes the JSON body. The local server adds the API key. No ticket or account action runs here.</p>
+        </section>
 
         <div class="how-strip"><div class="how-icon">✳</div><div><strong>Designed for assistive triage</strong><p>These signals suggest where a ticket goes. They never reset MFA, grant access, or close a security case.</p></div><a href="#playbook" id="learn-more">Explore the playbook <span>↗</span></a></div>
       </main>
